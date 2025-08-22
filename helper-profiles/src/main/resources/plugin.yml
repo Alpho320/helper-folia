@@ -5,5 +5,6 @@ description: ${project.description}
 main: me.lucko.helper.profiles.plugin.HelperProfilesPlugin
 website: https://github.com/lucko/helper
 load: STARTUP
+folia-supported: true
 depend: [helper, helper-sql]
 api-version: 1.13

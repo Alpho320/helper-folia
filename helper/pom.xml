@@ -12,7 +12,7 @@
 
     <artifactId>helper</artifactId>
     <packaging>jar</packaging>
-    <version>5.6.14</version>
+    <version>5.6.15</version>
 
     <name>helper</name>
     <description>A utility to reduce boilerplate code in Bukkit plugins.</description>
@@ -95,6 +95,7 @@
                                     <include>org.spongepowered:configurate-hocon</include>
                                     <include>com.typesafe:config</include>
                                     <include>net.kyori:event-api</include>
+                                    <include>com.github.Anon8281:UniversalScheduler</include>
                                 </includes>
                             </artifactSet>
                             <relocations>
@@ -113,6 +114,10 @@
                                 <relocation>
                                     <pattern>net.kyori.event</pattern>
                                     <shadedPattern>me.lucko.helper.eventbus</shadedPattern>
+                                </relocation>
+                                <relocation>
+                                    <pattern>com.github.Anon8281.universalScheduler</pattern>
+                                    <shadedPattern>me.lucko.helper.util.universalScheduler</shadedPattern>
                                 </relocation>
                             </relocations>
                         </configuration>
@@ -143,7 +148,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>${javadoc.version}</version>
+                        <version>3.11.2</version>
                         <executions>
                             <execution>
                                 <id>attach-javadocs</id>
@@ -158,12 +163,20 @@
         </profile>
     </profiles>
 
+
+    <repositories>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
+        </repository>
+    </repositories>
+
     <dependencies>
         <!-- shadow -->
         <dependency>
             <groupId>me.lucko</groupId>
             <artifactId>shadow-bukkit</artifactId>
-            <version>1.20.1</version>
+            <version>1.21.8</version>
             <scope>compile</scope>
         </dependency>
         <!-- flowpowered math -->
@@ -336,6 +349,14 @@
                     <artifactId>*</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+
+
+        <dependency>
+            <groupId>com.github.Anon8281</groupId>
+            <artifactId>UniversalScheduler</artifactId>
+            <version>0.1.7</version>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
 

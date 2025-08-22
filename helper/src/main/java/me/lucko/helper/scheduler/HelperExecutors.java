@@ -25,6 +25,9 @@
 
 package me.lucko.helper.scheduler;
 
+import com.github.Anon8281.universalScheduler.UniversalScheduler;
+import com.github.Anon8281.universalScheduler.scheduling.schedulers.TaskScheduler;
+import me.lucko.helper.Helper;
 import me.lucko.helper.internal.LoaderUtils;
 import me.lucko.helper.internal.exception.HelperExceptions;
 
@@ -40,9 +43,14 @@ public final class HelperExecutors {
     private static final Executor SYNC_BUKKIT = new BukkitSyncExecutor();
     private static final Executor ASYNC_BUKKIT = new BukkitAsyncExecutor();
     private static final HelperAsyncExecutor ASYNC_HELPER = new HelperAsyncExecutor();
+    private static final TaskScheduler TASK_SCHEDULER = UniversalScheduler.getScheduler(Helper.hostPlugin());
 
     public static Executor sync() {
         return SYNC_BUKKIT;
+    }
+
+    public static TaskScheduler taskScheduler() {
+        return TASK_SCHEDULER;
     }
 
     public static ScheduledExecutorService asyncHelper() {
@@ -60,14 +68,14 @@ public final class HelperExecutors {
     private static final class BukkitSyncExecutor implements Executor {
         @Override
         public void execute(Runnable runnable) {
-            Bukkit.getScheduler().scheduleSyncDelayedTask(LoaderUtils.getPlugin(), HelperExceptions.wrapSchedulerTask(runnable));
+            taskScheduler().runTask(HelperExceptions.wrapSchedulerTask(runnable));
         }
     }
 
     private static final class BukkitAsyncExecutor implements Executor {
         @Override
         public void execute(Runnable runnable) {
-            Bukkit.getScheduler().runTaskAsynchronously(LoaderUtils.getPlugin(), HelperExceptions.wrapSchedulerTask(runnable));
+            taskScheduler().runTaskAsynchronously(HelperExceptions.wrapSchedulerTask(runnable));
         }
     }
 

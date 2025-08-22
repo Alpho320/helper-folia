@@ -5,5 +5,6 @@ description: ${project.description}
 main: me.lucko.helper.internal.StandalonePlugin
 website: https://github.com/lucko/helper
 load: STARTUP
+folia-supported: true
 softdepend: [ProtocolLib, Citizens, ViaVersion]
 api-version: 1.13

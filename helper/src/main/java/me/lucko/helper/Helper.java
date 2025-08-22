@@ -25,8 +25,10 @@
 
 package me.lucko.helper;
 
+import com.github.Anon8281.universalScheduler.scheduling.schedulers.TaskScheduler;
 import me.lucko.helper.internal.LoaderUtils;
 import me.lucko.helper.plugin.HelperPlugin;
+import me.lucko.helper.scheduler.HelperExecutors;
 import me.lucko.helper.utils.annotation.NonnullByDefault;
 
 import org.bukkit.Bukkit;
@@ -35,7 +37,6 @@ import org.bukkit.World;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.ServicesManager;
-import org.bukkit.scheduler.BukkitScheduler;
 
 import java.util.Optional;
 
@@ -72,8 +73,8 @@ public final class Helper {
         return server().getServicesManager();
     }
 
-    public static BukkitScheduler bukkitScheduler() {
-        return server().getScheduler();
+    public static TaskScheduler bukkitScheduler() {
+        return HelperExecutors.taskScheduler();
     }
 
     @Nullable

@@ -172,7 +172,7 @@ final class HelperPromise<V> implements Promise<V> {
         if (delayTicks <= 0) {
             executeSync(runnable);
         } else {
-            Bukkit.getScheduler().runTaskLater(LoaderUtils.getPlugin(), HelperExceptions.wrapSchedulerTask(runnable), delayTicks);
+            HelperExecutors.taskScheduler().runTaskLater(HelperExceptions.wrapSchedulerTask(runnable), delayTicks);
         }
     }
 
@@ -180,7 +180,7 @@ final class HelperPromise<V> implements Promise<V> {
         if (delayTicks <= 0) {
             executeAsync(runnable);
         } else {
-            Bukkit.getScheduler().runTaskLaterAsynchronously(LoaderUtils.getPlugin(), HelperExceptions.wrapSchedulerTask(runnable), delayTicks);
+            HelperExecutors.taskScheduler().runTaskLaterAsynchronously(HelperExceptions.wrapSchedulerTask(runnable), delayTicks);
         }
     }
 
@@ -188,7 +188,7 @@ final class HelperPromise<V> implements Promise<V> {
         if (delay <= 0) {
             executeSync(runnable);
         } else {
-            Bukkit.getScheduler().runTaskLater(LoaderUtils.getPlugin(), HelperExceptions.wrapSchedulerTask(runnable), Ticks.from(delay, unit));
+            HelperExecutors.taskScheduler().runTaskLater(HelperExceptions.wrapSchedulerTask(runnable), Ticks.from(delay, unit));
         }
     }
 

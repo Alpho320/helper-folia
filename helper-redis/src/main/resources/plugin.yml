@@ -6,4 +6,5 @@ main: me.lucko.helper.redis.plugin.HelperRedisPlugin
 website: https://github.com/lucko/helper
 load: STARTUP
 depend: [helper]
+folia-supported: true
 api-version: 1.13

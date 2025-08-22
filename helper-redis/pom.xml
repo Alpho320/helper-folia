@@ -73,7 +73,7 @@
                             </artifactSet>
                             <relocations>
                                 <relocation>
-                                    <pattern>redis.clients.util</pattern>
+                                    <pattern>redis.clients</pattern>
                                     <shadedPattern>${shade.pattern}jedisutil</shadedPattern>
                                 </relocation>
                                 <relocation>
@@ -137,7 +137,7 @@
         <dependency>
             <groupId>redis.clients</groupId>
             <artifactId>jedis</artifactId>
-            <version>3.6.0</version>
+            <version>4.4.8</version>
             <scope>compile</scope>
             <optional>true</optional>
         </dependency>

@@ -38,6 +38,11 @@ import java.util.regex.Pattern;
 public final class MinecraftVersions {
 
     /**
+     * Version 1.21 - the tricky trials update
+     */
+    public static final MinecraftVersion v1_21 = MinecraftVersion.parse("1.21");
+
+    /**
      * Version 1.20 - the trails and tails update
      */
     public static final MinecraftVersion v1_20 = MinecraftVersion.parse("1.20");

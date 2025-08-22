@@ -25,6 +25,8 @@
 
 package me.lucko.helper;
 
+import com.github.Anon8281.universalScheduler.UniversalRunnable;
+import com.github.Anon8281.universalScheduler.scheduling.schedulers.TaskScheduler;
 import me.lucko.helper.interfaces.Delegate;
 import me.lucko.helper.internal.LoaderUtils;
 import me.lucko.helper.internal.exception.HelperExceptions;
@@ -35,9 +37,6 @@ import me.lucko.helper.scheduler.Task;
 import me.lucko.helper.scheduler.Ticks;
 import me.lucko.helper.scheduler.builder.TaskBuilder;
 import me.lucko.helper.utils.annotation.NonnullByDefault;
-
-import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitScheduler;
 
 import java.util.Objects;
 import java.util.concurrent.ScheduledFuture;
@@ -96,7 +95,7 @@ public final class Schedulers {
      *
      * @return bukkit's scheduler
      */
-    public static BukkitScheduler bukkit() {
+    public static TaskScheduler bukkit() {
         return Helper.bukkitScheduler();
     }
 
@@ -168,7 +167,7 @@ public final class Schedulers {
         }
     }
 
-    private static class HelperTask extends BukkitRunnable implements Task, Delegate<Consumer<Task>> {
+    private static class HelperTask extends UniversalRunnable implements Task, Delegate<Consumer<Task>> {
         private final Consumer<Task> backingTask;
 
         private final AtomicInteger counter = new AtomicInteger(0);
@@ -209,7 +208,8 @@ public final class Schedulers {
 
         @Override
         public int getBukkitId() {
-            return getTaskId();
+            new IllegalStateException("HelperTask#getBukkitId is not supported in this version of helper!").printStackTrace();
+            return -1;
         }
 
         @Override

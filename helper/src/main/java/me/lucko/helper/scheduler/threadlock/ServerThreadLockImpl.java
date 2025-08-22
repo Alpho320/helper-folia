@@ -28,6 +28,7 @@ package me.lucko.helper.scheduler.threadlock;
 import me.lucko.helper.internal.LoaderUtils;
 import me.lucko.helper.promise.ThreadContext;
 
+import me.lucko.helper.scheduler.HelperExecutors;
 import org.bukkit.Bukkit;
 
 import java.util.concurrent.CountDownLatch;
@@ -48,7 +49,7 @@ final class ServerThreadLockImpl implements ServerThreadLock {
         }
 
         // synchronize with the main thread, then countdown
-        Bukkit.getScheduler().scheduleSyncDelayedTask(LoaderUtils.getPlugin(), this::signal);
+        HelperExecutors.taskScheduler().runTask(this::signal);
 
         // wait for the main thread to become synchronized
         await();
