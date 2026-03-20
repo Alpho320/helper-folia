@@ -159,6 +159,9 @@ public enum NmsVersion {
             MinecraftVersion.of(1, 21, 6),
             MinecraftVersion.of(1, 21, 7),
             MinecraftVersion.of(1, 21, 8)
+    ),
+    v1_21_R7(
+            MinecraftVersion.of(1, 21, 11)
     );
 
     private final Set<MinecraftVersion> minecraftVersions;
