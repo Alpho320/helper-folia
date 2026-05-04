@@ -56,6 +56,7 @@
         <javadoc.version>3.11.2</javadoc.version>
 
         <bukkit.version>1.21.4-R0.1-SNAPSHOT</bukkit.version>
+        <paper.version>1.21.4-R0.1-SNAPSHOT</paper.version>
     </properties>
 
     <distributionManagement>
@@ -97,10 +98,15 @@
 
     <dependencies>
         <dependency>
+            <groupId>io.papermc.paper</groupId>
+            <artifactId>paper-api</artifactId>
+            <version>1.21.4-R0.1-SNAPSHOT</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
             <groupId>org.spigotmc</groupId>
             <artifactId>spigot-api</artifactId>
             <version>${bukkit.version}</version>
-            <scope>provided</scope>
         </dependency>
     </dependencies>
 
@@ -116,6 +122,10 @@
         <repository>
             <id>jitpack.io</id>
             <url>https://jitpack.io</url>
+        </repository>
+        <repository>
+            <id>papermc</id>
+            <url>https://repo.papermc.io/repository/maven-public/</url>
         </repository>
     </repositories>
 

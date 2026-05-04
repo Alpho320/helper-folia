@@ -11,7 +11,7 @@
  *  copies of the Software, and to permit persons to whom the Software is
  *  furnished to do so, subject to the following conditions:
  *
- *  The above copyright notice and this permission notice shall be included in all
+ *  The above copyright notice and this permission shall be included in all
  *  copies or substantial portions of the Software.
  *
  *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -25,6 +25,7 @@
 
 package me.lucko.helper.command;
 
+import com.destroystokyo.paper.event.server.AsyncTabCompleteEvent;
 import me.lucko.helper.command.context.CommandContext;
 import me.lucko.helper.command.context.ImmutableCommandContext;
 import me.lucko.helper.internal.LoaderUtils;
@@ -34,6 +35,8 @@ import me.lucko.helper.utils.annotation.NonnullByDefault;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -42,7 +45,7 @@ import java.util.List;
  * An abstract implementation of {@link Command} and {@link CommandExecutor}
  */
 @NonnullByDefault
-public abstract class AbstractCommand implements Command, CommandExecutor, TabCompleter {
+public abstract class AbstractCommand implements Command, CommandExecutor, TabCompleter, Listener {
 
     protected @Nullable String permission;
     protected @Nullable String permissionMessage;
@@ -51,6 +54,7 @@ public abstract class AbstractCommand implements Command, CommandExecutor, TabCo
     @Override
     public void register(String... aliases) {
         LoaderUtils.getPlugin().registerCommand(this, permission, permissionMessage, description, aliases);
+        LoaderUtils.getPlugin().registerListener(this);
     }
 
     @Override
@@ -79,4 +83,5 @@ public abstract class AbstractCommand implements Command, CommandExecutor, TabCo
         }
         return null;
     }
+
 }

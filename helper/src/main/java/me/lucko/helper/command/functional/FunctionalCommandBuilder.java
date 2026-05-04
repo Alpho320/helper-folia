@@ -248,6 +248,14 @@ public interface FunctionalCommandBuilder<T extends CommandSender> {
     FunctionalCommandBuilder<T> tabHandler(FunctionalTabHandler<T> tabHandler);
 
     /**
+     * Sets the async tab handler to the provided one.
+     *
+     * @param asyncTabHandler the async tab handler
+     * @return the builder instance
+     */
+    FunctionalCommandBuilder<T> asyncTabHandler(FunctionalAsyncTabHandler<T> asyncTabHandler);
+
+    /**
      * Builds this {@link FunctionalCommandBuilder} into a {@link Command} instance.
      *
      * The command will not be registered with the server until {@link Command#register(String...)} is called.

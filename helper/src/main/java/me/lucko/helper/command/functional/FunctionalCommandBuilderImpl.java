@@ -46,20 +46,22 @@ import javax.annotation.Nullable;
 class FunctionalCommandBuilderImpl<T extends CommandSender> implements FunctionalCommandBuilder<T> {
     private final ImmutableList.Builder<Predicate<CommandContext<?>>> predicates;
     private @Nullable FunctionalTabHandler tabHandler;
+    private @Nullable FunctionalAsyncTabHandler asyncTabHandler;
     private @Nullable String permission;
     private @Nullable String permissionMessage;
     private @Nullable String description;
 
-    private FunctionalCommandBuilderImpl(ImmutableList.Builder<Predicate<CommandContext<?>>> predicates, @Nullable FunctionalTabHandler tabHandler, @Nullable String permission, @Nullable String permissionMessage, @Nullable String description) {
+    private FunctionalCommandBuilderImpl(ImmutableList.Builder<Predicate<CommandContext<?>>> predicates, @Nullable FunctionalTabHandler tabHandler, @Nullable FunctionalAsyncTabHandler asyncTabHandler, @Nullable String permission, @Nullable String permissionMessage, @Nullable String description) {
         this.predicates = predicates;
         this.tabHandler = tabHandler;
+        this.asyncTabHandler = asyncTabHandler;
         this.permission = permission;
         this.permissionMessage = permissionMessage;
         this.description = description;
     }
 
     FunctionalCommandBuilderImpl() {
-        this(ImmutableList.builder(), null, null, null, null);
+        this(ImmutableList.builder(), null, null, null, null, null);
     }
 
     public FunctionalCommandBuilder<T> description(String description) {
@@ -117,7 +119,7 @@ class FunctionalCommandBuilderImpl<T extends CommandSender> implements Functiona
             return false;
         });
         // cast the generic type
-        return new FunctionalCommandBuilderImpl<>(this.predicates, this.tabHandler, this.permission, this.permissionMessage, this.description);
+        return new FunctionalCommandBuilderImpl<>(this.predicates, this.tabHandler, this.asyncTabHandler, this.permission, this.permissionMessage, this.description);
     }
 
     @Override
@@ -132,7 +134,7 @@ class FunctionalCommandBuilderImpl<T extends CommandSender> implements Functiona
             return false;
         });
         // cast the generic type
-        return new FunctionalCommandBuilderImpl<>(this.predicates, this.tabHandler, this.permission, this.permissionMessage, this.description);
+        return new FunctionalCommandBuilderImpl<>(this.predicates, this.tabHandler, this.asyncTabHandler, this.permission, this.permissionMessage, this.description);
     }
 
     @Override
@@ -203,8 +205,14 @@ class FunctionalCommandBuilderImpl<T extends CommandSender> implements Functiona
     }
 
     @Override
+    public FunctionalCommandBuilder<T> asyncTabHandler(FunctionalAsyncTabHandler asyncTabHandler) {
+        this.asyncTabHandler = asyncTabHandler;
+        return this;
+    }
+
+    @Override
     public Command handler(FunctionalCommandHandler handler) {
         Objects.requireNonNull(handler, "handler");
-        return new FunctionalCommand(this.predicates.build(), handler, tabHandler, permission, permissionMessage, description);
+        return new FunctionalCommand(this.predicates.build(), handler, tabHandler, asyncTabHandler, permission, permissionMessage, description);
     }
 }

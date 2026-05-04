@@ -11,7 +11,7 @@
  *  copies of the Software, and to permit persons to whom the Software is
  *  furnished to do so, subject to the following conditions:
  *
- *  The above copyright notice and this permission notice shall be included in all
+ *  The above copyright notice and this permission shall be included in all
  *  copies or substantial portions of the Software.
  *
  *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
@@ -25,13 +25,20 @@
 
 package me.lucko.helper.command.functional;
 
+import com.destroystokyo.paper.event.server.AsyncTabCompleteEvent;
 import com.google.common.collect.ImmutableList;
 
 import me.lucko.helper.command.AbstractCommand;
 import me.lucko.helper.command.CommandInterruptException;
 import me.lucko.helper.command.context.CommandContext;
+import me.lucko.helper.command.context.ImmutableCommandContext;
 import me.lucko.helper.utils.annotation.NonnullByDefault;
 
+import org.bukkit.Bukkit;
+import org.bukkit.command.CommandSender;
+import org.bukkit.event.EventHandler;
+
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -42,12 +49,14 @@ import javax.annotation.Nullable;
 class FunctionalCommand extends AbstractCommand {
     private final ImmutableList<Predicate<CommandContext<?>>> predicates;
     private final FunctionalCommandHandler handler;
-    private @Nullable final FunctionalTabHandler tabHandler;
+    private final @Nullable FunctionalTabHandler tabHandler;
+    private final @Nullable FunctionalAsyncTabHandler asyncTabHandler;
 
-    FunctionalCommand(ImmutableList<Predicate<CommandContext<?>>> predicates, FunctionalCommandHandler handler, @Nullable FunctionalTabHandler tabHandler, @Nullable String permission, @Nullable String permissionMessage, @Nullable String description) {
+    FunctionalCommand(ImmutableList<Predicate<CommandContext<?>>> predicates, FunctionalCommandHandler handler, @Nullable FunctionalTabHandler tabHandler, @Nullable FunctionalAsyncTabHandler asyncTabHandler, @Nullable String permission, @Nullable String permissionMessage, @Nullable String description) {
         this.predicates = predicates;
         this.handler = handler;
         this.tabHandler = tabHandler;
+        this.asyncTabHandler = asyncTabHandler;
         this.permission = permission;
         this.permissionMessage = permissionMessage;
         this.description = description;
@@ -79,5 +88,50 @@ class FunctionalCommand extends AbstractCommand {
 
         //noinspection unchecked
         return this.tabHandler.handle(context);
+    }
+
+    @EventHandler
+    public void onAsyncTabComplete(AsyncTabCompleteEvent event) {
+        if (asyncTabHandler == null || !event.isCommand() || event.isHandled()) {
+            return;
+        }
+
+        // Extract command information from the buffer
+        String buffer = event.getBuffer();
+        String[] parts = buffer.split(" ");
+        
+        // Get the command label from buffer (remove leading slash if present)
+        String bufferLabel = parts.length > 0 ? parts[0].startsWith("/") ? parts[0].substring(1) : parts[0] : "";
+
+        // Remove the command name and construct arguments
+        String[] args = new String[parts.length - 1];
+        if (parts.length > 1) {
+            System.arraycopy(parts, 1, args, 0, parts.length - 1);
+        }
+
+        // Create command context from the event
+        CommandContext<CommandSender> context = new ImmutableCommandContext<>(
+            event.getSender(),
+            bufferLabel,
+            args,
+            ImmutableList.of()
+        );
+
+        // Check predicates first, just like in callTabCompleter
+        for (Predicate<CommandContext<?>> predicate : this.predicates) {
+            if (!predicate.test(context)) {
+                return;
+            }
+        }
+
+        try {
+            //noinspection unchecked
+            List<String> completions = this.asyncTabHandler.handle((CommandContext<CommandSender>) context);
+            if (completions != null) {
+                event.setCompletions(completions);
+            }
+        } catch (CommandInterruptException e) {
+            // Handle the exception if needed, but for async tab complete, we might not need to do anything special
+        }
     }
 }
