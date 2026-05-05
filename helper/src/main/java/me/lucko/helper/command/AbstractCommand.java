@@ -32,6 +32,7 @@ import me.lucko.helper.internal.LoaderUtils;
 import me.lucko.helper.utils.CommandMapUtil;
 import me.lucko.helper.utils.annotation.NonnullByDefault;
 
+import org.bukkit.Bukkit;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
@@ -39,6 +40,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 
 import javax.annotation.Nullable;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -47,12 +49,15 @@ import java.util.List;
 @NonnullByDefault
 public abstract class AbstractCommand implements Command, CommandExecutor, TabCompleter, Listener {
 
+    protected @Nullable String[] aliases;
     protected @Nullable String permission;
     protected @Nullable String permissionMessage;
     protected @Nullable String description;
 
     @Override
     public void register(String... aliases) {
+        Bukkit.getLogger().info("Helper | Registering command of " + Arrays.toString(aliases));
+        this.aliases = aliases;
         LoaderUtils.getPlugin().registerCommand(this, permission, permissionMessage, description, aliases);
         LoaderUtils.getPlugin().registerListener(this);
     }

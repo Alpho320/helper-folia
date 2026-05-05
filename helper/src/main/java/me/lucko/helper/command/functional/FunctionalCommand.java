@@ -34,11 +34,10 @@ import me.lucko.helper.command.context.CommandContext;
 import me.lucko.helper.command.context.ImmutableCommandContext;
 import me.lucko.helper.utils.annotation.NonnullByDefault;
 
-import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -90,7 +89,7 @@ class FunctionalCommand extends AbstractCommand {
         return this.tabHandler.handle(context);
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onAsyncTabComplete(AsyncTabCompleteEvent event) {
         if (asyncTabHandler == null || !event.isCommand() || event.isHandled()) {
             return;
@@ -98,10 +97,25 @@ class FunctionalCommand extends AbstractCommand {
 
         // Extract command information from the buffer
         String buffer = event.getBuffer();
-        String[] parts = buffer.split(" ");
+        String[] parts = buffer.split(" ", -1);
         
         // Get the command label from buffer (remove leading slash if present)
         String bufferLabel = parts.length > 0 ? parts[0].startsWith("/") ? parts[0].substring(1) : parts[0] : "";
+
+        boolean found = false;
+        if (aliases != null) {
+            //Bukkit.getLogger().info("FunctionalCommand#onAsyncTabComplete | Aliases: " + Arrays.toString(aliases));
+            for (String alias : aliases) {
+                //Bukkit.getLogger().info("FunctionalCommand#onAsyncTabComplete | Alias: " + alias + " is equal to " + bufferLabel);
+                if (bufferLabel.equalsIgnoreCase(alias)) {
+                    found = true;
+                    break;
+                }
+            }
+        }
+
+        if (!found) return;
+
 
         // Remove the command name and construct arguments
         String[] args = new String[parts.length - 1];
