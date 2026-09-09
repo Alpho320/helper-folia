@@ -41,7 +41,6 @@ import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 
 import java.nio.charset.StandardCharsets;
-import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -54,10 +53,21 @@ public class HelperRedis implements Redis {
     private final JedisPool jedisPool;
     private final AbstractMessenger messenger;
 
-    private final Set<String> channels = new HashSet<>();
+    // Mutated from the messenger's subscribe/unsubscribe callbacks (any thread) while the resubscribe
+    // watchdog below iterates it. A plain HashSet here could throw ConcurrentModificationException,
+    // or worse, silently drop a channel registration.
+    private final Set<String> channels = ConcurrentHashMap.newKeySet();
     private final CompositeTerminable registry = CompositeTerminable.create();
 
-    private PubSubListener listener = null;
+    /** First reconnect attempt lands inside one tick, matching the old scheduler-based retry. */
+    private static final long RECONNECT_MIN_BACKOFF_MS = 50L;
+    private static final long RECONNECT_MAX_BACKOFF_MS = 2000L;
+    /** A subscription that lived at least this long counts as healthy; the backoff resets. */
+    private static final long RECONNECT_BACKOFF_RESET_MS = 30_000L;
+
+    private volatile PubSubListener listener = null;
+    private volatile boolean closed = false;
+    private final Thread subscriberThread;
 
     public HelperRedis(@Nonnull RedisCredentials credentials) {
         JedisPoolConfig config = new JedisPoolConfig();
@@ -74,45 +84,27 @@ public class HelperRedis implements Redis {
             jedis.ping();
         }
 
-        Schedulers.async().run(new Runnable() {
-            private boolean broken = false;
-
-            @Override
-            public void run() {
-                if (this.broken) {
-                    Log.info("[helper-redis] Retrying subscription...");
-                    this.broken = false;
-                }
-
-                try (Jedis jedis = getJedis()) {
-                    try {
-                        HelperRedis.this.listener = new PubSubListener();
-                        jedis.subscribe(HelperRedis.this.listener, "helper-redis-dummy".getBytes(StandardCharsets.UTF_8));
-                    } catch (Exception e) {
-                        // Attempt to unsubscribe this instance and try again.
-                        new RuntimeException("Error subscribing to listener", e).printStackTrace();
-                        try {
-                            HelperRedis.this.listener.unsubscribe();
-                        } catch (Exception ignored) {
-
-                        }
-                        HelperRedis.this.listener = null;
-                        this.broken = true;
-                    }
-                }
-
-                if (this.broken) {
-                    // reschedule the runnable
-                    Schedulers.async().runLater(this, 1L);
-                }
-            }
-        });
+        // Jedis#subscribe does not return: it parks on a socket read for the lifetime of the
+        // connection. Running it on Schedulers.async() therefore did not "schedule a task", it
+        // permanently consumed one thread of the shared helper pool - a pool every plugin on the
+        // server draws from for its own async work. It gets its own thread instead, so nothing is
+        // taken away from the scheduler, and the retry loop lives on that thread rather than
+        // re-queueing itself into the pool.
+        this.subscriberThread = new Thread(this::runSubscriberLoop, "helper-redis-subscriber");
+        this.subscriberThread.setDaemon(true);
 
         Schedulers.async().runRepeating(() -> {
             // ensure subscribed to all channels
             PubSubListener listener = HelperRedis.this.listener;
 
             if (listener == null || !listener.isSubscribed()) {
+                return;
+            }
+
+            // Fast path for the overwhelmingly common case: this watchdog runs every 2 ticks
+            // forever, and once everything is subscribed each pass was still taking the listener
+            // lock once per channel to discover it had nothing to do.
+            if (listener.hasSubscribedTo(this.channels)) {
                 return;
             }
 
@@ -131,14 +123,89 @@ public class HelperRedis implements Redis {
                 channel -> {
                     Log.info("[helper-redis] Subscribing to channel: " + channel);
                     this.channels.add(channel);
-                    this.listener.subscribe(channel.getBytes(StandardCharsets.UTF_8));
+                    // The listener is null until the subscriber thread has its connection, and it
+                    // goes null again while a broken connection is being retried. The watchdog above
+                    // picks the channel up from the set, so a missing listener is not an error here.
+                    PubSubListener listener = this.listener;
+                    if (listener != null) {
+                        listener.subscribe(channel.getBytes(StandardCharsets.UTF_8));
+                    }
                 },
                 channel -> {
                     Log.info("[helper-redis] Unsubscribing from channel: " + channel);
                     this.channels.remove(channel);
-                    this.listener.unsubscribe(channel.getBytes(StandardCharsets.UTF_8));
+                    PubSubListener listener = this.listener;
+                    if (listener != null) {
+                        listener.unsubscribe(channel.getBytes(StandardCharsets.UTF_8));
+                    }
                 }
         );
+
+        // Started last, on purpose: onMessage dereferences `messenger`, so the thread must not be
+        // able to run before that field is assigned.
+        this.subscriberThread.start();
+    }
+
+    /**
+     * Blocking subscribe loop, owned by {@link #subscriberThread}.
+     *
+     * <p>Each pass takes a connection and blocks inside {@code jedis.subscribe} until the connection
+     * drops or {@link #close()} unsubscribes it. On an unexpected failure it waits a second and
+     * reconnects, so a redis restart heals itself.</p>
+     */
+    private void runSubscriberLoop() {
+        boolean retrying = false;
+        long backoffMs = RECONNECT_MIN_BACKOFF_MS;
+
+        while (!this.closed) {
+            if (retrying) {
+                Log.info("[helper-redis] Retrying subscription...");
+                retrying = false;
+            }
+
+            long subscribedAt = System.currentTimeMillis();
+            try (Jedis jedis = getJedis()) {
+                PubSubListener listener = new PubSubListener();
+                this.listener = listener;
+                jedis.subscribe(listener, "helper-redis-dummy".getBytes(StandardCharsets.UTF_8));
+            } catch (Exception e) {
+                if (this.closed) {
+                    break;
+                }
+                new RuntimeException("Error subscribing to listener", e).printStackTrace();
+                PubSubListener listener = this.listener;
+                if (listener != null) {
+                    try {
+                        listener.unsubscribe();
+                    } catch (Exception ignored) {
+                        // the connection is already gone; nothing to unsubscribe from
+                    }
+                }
+                retrying = true;
+            } finally {
+                this.listener = null;
+            }
+
+            if (this.closed) {
+                break;
+            }
+
+            // A connection that stayed up is not evidence of a broken redis, so start the next
+            // reconnect from the minimum again.
+            if (System.currentTimeMillis() - subscribedAt >= RECONNECT_BACKOFF_RESET_MS) {
+                backoffMs = RECONNECT_MIN_BACKOFF_MS;
+            }
+
+            // Reconnect quickly - the first retry lands within a tick, as it did before - but back
+            // off if redis is actually down, so a dead server is not hammered in a tight loop.
+            try {
+                Thread.sleep(backoffMs);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+            backoffMs = Math.min(backoffMs * 2, RECONNECT_MAX_BACKOFF_MS);
+        }
     }
 
     @Nonnull
@@ -156,9 +223,18 @@ public class HelperRedis implements Redis {
 
     @Override
     public void close() throws Exception {
-        if (this.listener != null) {
-            this.listener.unsubscribe();
+        this.closed = true;
+
+        PubSubListener listener = this.listener;
+        if (listener != null) {
+            listener.unsubscribe();
             this.listener = null;
+        }
+
+        // Unsubscribing releases the blocking read, so the loop sees `closed` and exits on its own.
+        // Interrupt as a fallback in case the connection is already wedged.
+        if (this.subscriberThread != null) {
+            this.subscriberThread.interrupt();
         }
 
         if (this.jedisPool != null) {
@@ -191,6 +267,11 @@ public class HelperRedis implements Redis {
             } finally {
                 this.lock.unlock();
             }
+        }
+
+        /** True when every given channel is already subscribed - lets the watchdog skip the lock. */
+        boolean hasSubscribedTo(Set<String> channels) {
+            return this.subscribed.containsAll(channels);
         }
 
         @Override
