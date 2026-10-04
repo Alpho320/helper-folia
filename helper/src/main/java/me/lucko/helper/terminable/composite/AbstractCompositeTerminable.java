@@ -25,6 +25,7 @@
 
 package me.lucko.helper.terminable.composite;
 
+import me.lucko.helper.promise.Promise;
 import me.lucko.helper.terminable.Terminable;
 
 import java.util.ArrayList;
@@ -44,6 +45,22 @@ public class AbstractCompositeTerminable implements CompositeTerminable {
     @Override
     public CompositeTerminable with(AutoCloseable autoCloseable) {
         Objects.requireNonNull(autoCloseable, "autoCloseable");
+        // Aesir 04.10.2026: a promise bound here (Schedulers.async().run(...).bindWith(consumer) - the usual way to
+        // "cancel it if the module unloads") stayed in this deque forever after it completed: cleanup() only drops
+        // closed terminables and a completed promise is not "closed" (closed == cancelled). ASMP heap dump: 1.03M
+        // completed promises (~200 MB with their futures/flags) held by the gameplay-asmp and AesirCore module
+        // terminables after 20 h. Closing a completed promise is a no-op, so a completed promise is simply not
+        // kept: never added when already done, removed as soon as it completes otherwise.
+        if (autoCloseable instanceof Promise) {
+            final Promise<?> promise = (Promise<?>) autoCloseable;
+            if (promise.isDone()) {
+                return this;
+            }
+            this.closeables.push(autoCloseable);
+            // pushed first: a promise completing right now still runs this callback and is removed again
+            promise.toCompletableFuture().whenComplete((value, error) -> this.closeables.remove(autoCloseable));
+            return this;
+        }
         this.closeables.push(autoCloseable);
         return this;
     }
